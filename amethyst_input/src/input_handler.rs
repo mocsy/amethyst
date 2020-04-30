@@ -27,8 +27,8 @@ where
 {
     /// Maps inputs to actions and axes.
     pub bindings: Bindings<T>,
-    /// Encodes the VirtualKeyCode and corresponding scancode.
-    pressed_keys: SmallVec<[(VirtualKeyCode, u32); 12]>,
+    /// Encodes the VirtualKeyCode and corresponding scancode for a keyboard_id.
+    pressed_keys: SmallVec<[(VirtualKeyCode, u32, u64); 12]>,
     pressed_mouse_buttons: SmallVec<[MouseButton; 12]>,
     pressed_controller_buttons: SmallVec<[(u32, ControllerButton); 12]>,
     /// Holds current state of all connected controller axes
@@ -68,6 +68,7 @@ where
                     event_handler.single_write(KeyTyped(c));
                 }
                 WindowEvent::KeyboardInput {
+                    device_id,
                     input:
                         KeyboardInput {
                             state: ElementState::Pressed,
@@ -77,13 +78,16 @@ where
                         },
                     ..
                 } => {
-                    if self.pressed_keys.iter().all(|&k| k.0 != key_code) {
-                        self.pressed_keys.push((key_code, scancode));
+                    let keyboard_id = Self::map_device_id_to_u64id(device_id);
+                    if self.pressed_keys.iter()
+                    .filter(|&k| k.2.eq(&keyboard_id))
+                    .all(|&k| k.0 != key_code) {
+                        self.pressed_keys.push((key_code, scancode, keyboard_id));
                         event_handler.iter_write(
                             [
-                                KeyPressed { key_code, scancode },
-                                ButtonPressed(Button::Key(key_code)),
-                                ButtonPressed(Button::ScanCode(scancode)),
+                                KeyPressed { key_code, scancode, keyboard_id },
+                                ButtonPressed(Button::Key(key_code), Some(keyboard_id)),
+                                ButtonPressed(Button::ScanCode(scancode), Some(keyboard_id)),
                             ]
                             .iter()
                             .cloned(),
@@ -105,6 +109,7 @@ where
                     }
                 }
                 WindowEvent::KeyboardInput {
+                    device_id,
                     input:
                         KeyboardInput {
                             state: ElementState::Released,
@@ -114,14 +119,17 @@ where
                         },
                     ..
                 } => {
-                    let index = self.pressed_keys.iter().position(|&k| k.0 == key_code);
+                    let keyboard_id = Self::map_device_id_to_u64id(device_id);
+                    let index = self.pressed_keys.iter()
+                    .filter(|&k| k.2.eq(&keyboard_id))
+                    .position(|&k| k.0 == key_code);
                     if let Some(i) = index {
                         self.pressed_keys.swap_remove(i);
                         event_handler.iter_write(
                             [
-                                KeyReleased { key_code, scancode },
-                                ButtonReleased(Button::Key(key_code)),
-                                ButtonReleased(Button::ScanCode(scancode)),
+                                KeyReleased { key_code, scancode, keyboard_id },
+                                ButtonReleased(Button::Key(key_code), Some(keyboard_id)),
+                                ButtonReleased(Button::ScanCode(scancode), Some(keyboard_id)),
                             ]
                             .iter()
                             .cloned(),
@@ -164,7 +172,7 @@ where
                         event_handler.iter_write(
                             [
                                 MouseButtonPressed(mouse_button),
-                                ButtonPressed(Button::Mouse(mouse_button)),
+                                ButtonPressed(Button::Mouse(mouse_button), None),
                             ]
                             .iter()
                             .cloned(),
@@ -200,7 +208,7 @@ where
                         event_handler.iter_write(
                             [
                                 MouseButtonReleased(mouse_button),
-                                ButtonReleased(Button::Mouse(mouse_button)),
+                                ButtonReleased(Button::Mouse(mouse_button), None),
                             ]
                             .iter()
                             .cloned(),
@@ -313,7 +321,7 @@ where
                         event_handler.iter_write(
                             [
                                 event.into(),
-                                ButtonPressed(Button::Controller(controller_id, button)),
+                                ButtonPressed(Button::Controller(controller_id, button), None),
                             ]
                             .iter()
                             .cloned(),
@@ -345,7 +353,7 @@ where
                         event_handler.iter_write(
                             [
                                 event.into(),
-                                ButtonReleased(Button::Controller(controller_id, button)),
+                                ButtonReleased(Button::Controller(controller_id, button), None),
                             ]
                             .iter()
                             .cloned(),
@@ -766,6 +774,14 @@ where
                 }
             }
         }
+    }
+
+    /// It converts a winit::DeviceId to a u64 using DefaultHasher
+    fn map_device_id_to_u64id(device_id: winit::DeviceId) -> u64 {
+        use std::hash::Hasher;
+        let mut s = std::collections::hash_map::DefaultHasher::new();
+        device_id.hash(&mut s);
+        s.finish()
     }
 }
 

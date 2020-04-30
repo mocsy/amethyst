@@ -47,12 +47,12 @@ mod util;
 mod sdl_events_system;
 
 struct KeyThenCode {
-    value: (VirtualKeyCode, u32),
+    value: (VirtualKeyCode, u32, u64),
     index: u8,
 }
 
 impl KeyThenCode {
-    pub fn new(value: (VirtualKeyCode, u32)) -> KeyThenCode {
+    pub fn new(value: (VirtualKeyCode, u32, u64)) -> KeyThenCode {
         KeyThenCode { value, index: 0 }
     }
 }

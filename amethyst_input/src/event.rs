@@ -25,6 +25,8 @@ where
         key_code: VirtualKeyCode,
         /// Scancode, used for positional info. i.e. The third key on the first row was pressed.
         scancode: u32,
+        /// The id of the keyboard from which this KeyPress originates from.
+        keyboard_id: u64,
     },
     /// A key was released, sent exactly once per key release.
     KeyReleased {
@@ -32,6 +34,8 @@ where
         key_code: VirtualKeyCode,
         /// Scancode, used for positional info. i.e. The third key on the first row was released.
         scancode: u32,
+        /// The id of the keyboard from which this KeyPress originates from.
+        keyboard_id: u64,
     },
     /// A unicode character was received by the window.  Good for typing.
     KeyTyped(char),
@@ -39,10 +43,10 @@ where
     MouseButtonPressed(MouseButton),
     /// A mouse button was released, sent exactly once per release.
     MouseButtonReleased(MouseButton),
-    /// A button was pressed.
-    ButtonPressed(Button),
-    /// A button was released.
-    ButtonReleased(Button),
+    /// A button was pressed on keyboard_id.
+    ButtonPressed(Button, Option<u64>),
+    /// A button was released on keyboard_id.
+    ButtonReleased(Button, Option<u64>),
     /// The mouse pointer moved on screen
     CursorMoved {
         /// The amount the cursor moved horizontally in pixels.
